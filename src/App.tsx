@@ -1,11 +1,9 @@
 import { Header } from "./components/Header";
-import { OneClickTrading } from "./components/OneClickTrading.tsx";
 
 function App() {
   return (
     <div className="min-h-screen bg-black">
-      <Header></Header>
-      <OneClickTrading />
+      <Header />
 
       <main className="max-w-7xl mx-auto p-4 mt-10">
         <div className="border-2 border-green-400 p-8 text-center text-green-400">
