@@ -1,8 +1,9 @@
 import { ConnectButton } from "./ConnectButton";
 import { OneClickButton } from "./OneClickTrading.tsx";
 import { usePrivy } from "@privy-io/react-auth";
+import type { AccountState } from "../hooks/useNadoAccount";
 
-export const Header = () => {
+export const Header = ({ account }: { account: AccountState }) => {
   const { authenticated } = usePrivy();
 
   return (
@@ -27,7 +28,7 @@ export const Header = () => {
 
         <div className="flex items-center gap-3">
           {authenticated && <OneClickButton />}
-          <ConnectButton />
+          <ConnectButton account={account} />
         </div>
       </div>
     </header>
