@@ -27,23 +27,19 @@ const SideToggle = ({
   isBuy: boolean;
   onChange: (v: boolean) => void;
 }) => (
-  <div className="flex bg-gray-900 rounded p-0.5 border border-gray-800 w-28 shrink-0">
+  <div className="flex border-2 border-white/20 w-24 shrink-0 bg-black font-sans">
     <button
       onClick={() => onChange(true)}
-      className={`flex-1 py-1 text-xs font-bold rounded transition-colors ${
-        isBuy
-          ? "bg-green-500/20 text-green-400"
-          : "text-gray-600 hover:text-gray-400"
+      className={`flex-1 py-1 text-[10px] font-black uppercase transition-colors ${
+        isBuy ? "bg-green-400 text-black" : "text-gray-600 hover:text-white"
       }`}
     >
       L
     </button>
     <button
       onClick={() => onChange(false)}
-      className={`flex-1 py-1 text-xs font-bold rounded transition-colors ${
-        !isBuy
-          ? "bg-red-500/20 text-red-400"
-          : "text-gray-600 hover:text-gray-400"
+      className={`flex-1 py-1 text-[10px] font-black uppercase border-l-2 border-white/20 transition-colors ${
+        !isBuy ? "bg-white text-black" : "text-gray-600 hover:text-white"
       }`}
     >
       S
@@ -56,7 +52,6 @@ export const BatchOrderPanel = ({
   accountAvailable = 0,
 }: BatchOrderPanelProps) => {
   const { getAccessToken } = usePrivy();
-
   const perpSymbols = Object.values(symbols).filter((s) => s.type === "perp");
 
   const [basket, setBasket] = useState<BasketItem[]>([]);
@@ -129,20 +124,15 @@ export const BatchOrderPanel = ({
       (o) => isNaN(parseFloat(o.amount)) || parseFloat(o.amount) <= 0,
     );
     if (hasInvalid) {
-      setFeedback({
-        type: "error",
-        msg: "Please enter valid amounts for all assets",
-      });
+      setFeedback({ type: "error", msg: "INVALID AMOUNTS DETECTED" });
       return;
     }
 
     try {
       setIsSubmitting(true);
       setFeedback(null);
-
       const token = await getAccessToken();
-      if (!token)
-        throw new Error("Authentication error. Please reconnect wallet.");
+      if (!token) throw new Error("AUTH ERROR");
 
       const payload = {
         orders: basket.map((o) => ({
@@ -154,51 +144,46 @@ export const BatchOrderPanel = ({
         stop_on_failure: stopOnFailure,
       };
 
-      const result = await placeBatchOrder(payload, token);
-
+      await placeBatchOrder(payload, token);
       setFeedback({
         type: "success",
-        msg: `${basket.length} orders executed successfully!`,
+        msg: `INDEX OF ${basket.length} EXECUTED`,
       });
       setBasket([]);
-      console.log(">>> [BATCH SUCCESS]", result);
     } catch (err: any) {
-      console.error(">>> [BATCH ERROR]", err);
-      setFeedback({
-        type: "error",
-        msg: err.message || "Batch execution failed",
-      });
+      setFeedback({ type: "error", msg: err.message || "EXECUTION FAILED" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 w-full">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-white font-bold text-lg">Batch Orders</h2>
-        <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded">
+    <div className="w-full flex flex-col gap-5 font-sans h-full">
+      <div className="flex justify-between items-center">
+        <h2 className="text-white font-black uppercase tracking-[0.1em] text-lg">
+          Index Config
+        </h2>
+        <span className="border-2 border-white/20 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest">
           FOK × {basket.length}
         </span>
       </div>
 
-      {/* Balance bar */}
+      {/* BALANCE BAR */}
       {accountAvailable > 0 && (
-        <div className="mb-4 p-3 bg-gray-900 rounded-lg border border-gray-800">
-          <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-gray-400">Available</span>
-            <span className="text-white">${accountAvailable.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Allocated</span>
-            <span className={isOverBudget ? "text-red-400" : "text-green-400"}>
-              ${totalAllocated.toFixed(2)}
+        <div className="border-2 border-white/20 bg-black p-3">
+          <div className="flex justify-between text-[10px] font-black mb-2 uppercase tracking-widest">
+            <span className="text-gray-500">
+              Avail:{" "}
+              <span className="text-white">${accountAvailable.toFixed(2)}</span>
+            </span>
+            <span className={isOverBudget ? "text-red-500" : "text-green-400"}>
+              Alloc: ${totalAllocated.toFixed(2)}
             </span>
           </div>
           {basket.length > 0 && (
-            <div className="mt-2 w-full bg-gray-800 rounded-full h-1">
+            <div className="w-full bg-gray-900 h-2 border border-white/10">
               <div
-                className={`h-1 rounded-full transition-all ${isOverBudget ? "bg-red-500" : "bg-green-500"}`}
+                className={`h-full transition-all ${isOverBudget ? "bg-red-500" : "bg-green-400"}`}
                 style={{
                   width: `${Math.min((totalAllocated / accountAvailable) * 100, 100)}%`,
                 }}
@@ -208,87 +193,93 @@ export const BatchOrderPanel = ({
         </div>
       )}
 
-      {/* Add asset */}
-      <div className="flex gap-2 mb-3">
+      {/* ADD ASSET */}
+      <div className="flex gap-0 border-2 border-white/20">
         <select
           value={selectedProductId}
           onChange={(e) => setSelectedProductId(Number(e.target.value))}
-          className="flex-1 bg-gray-900 text-white text-sm border border-gray-800 rounded-lg px-3 py-2 outline-none focus:border-purple-500 transition-colors appearance-none cursor-pointer"
+          className="flex-1 bg-black text-white font-black text-sm px-3 py-3 outline-none cursor-pointer appearance-none rounded-none"
         >
           {perpSymbols.map((s) => (
             <option
               key={s.product_id}
               value={s.product_id}
-              className="bg-gray-950"
+              className="bg-black text-white font-sans"
             >
-              {s.symbol} (ID: {s.product_id})
+              {s.symbol}
             </option>
           ))}
         </select>
         <button
           onClick={addToBasket}
           disabled={basket.some((o) => o.product_id === selectedProductId)}
-          className="px-3 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg text-sm font-bold hover:bg-purple-500/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="px-4 py-3 bg-white text-black font-black text-[10px] uppercase tracking-[0.2em] border-l-2 border-white/20 hover:bg-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          + ADD
+          Add
         </button>
       </div>
 
-      {/* Split controls */}
+      {/* SPLIT CONTROLS */}
       {basket.length > 1 && (
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => {
               setSplitMode("equal");
               setBasket(distributeEqual(basket));
             }}
-            className="text-xs px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded hover:bg-blue-500/20 transition-colors"
+            className={`text-[10px] uppercase font-black tracking-[0.2em] px-3 py-2 border-2 transition-colors ${
+              splitMode === "equal"
+                ? "border-green-400 text-green-400"
+                : "border-white/20 text-gray-500 hover:text-white"
+            }`}
           >
-            ⚖ Equal split
+            Equal Split
           </button>
           <button
             onClick={() => setSplitMode("manual")}
-            className={`text-xs px-2 py-1 rounded border transition-colors ${
+            className={`text-[10px] uppercase font-black tracking-[0.2em] px-3 py-2 border-2 transition-colors ${
               splitMode === "manual"
-                ? "bg-gray-700 text-white border-gray-600"
-                : "bg-gray-900 text-gray-500 border-gray-800 hover:text-gray-300"
+                ? "border-white text-white"
+                : "border-white/20 text-gray-500 hover:text-white"
             }`}
           >
             Manual
           </button>
           {accountAvailable > 0 && (
-            <span className="text-xs text-gray-600 ml-auto">
-              ~${(accountAvailable / basket.length).toFixed(2)} each
+            <span className="text-[10px] font-black text-gray-600 ml-auto uppercase tracking-widest">
+              ~${(accountAvailable / basket.length).toFixed(2)} / EA
             </span>
           )}
         </div>
       )}
 
-      {/* Basket */}
-      <div className="space-y-2">
+      {/* INDEX LIST */}
+      <div className="space-y-3 flex-1">
         {basket.length === 0 ? (
-          <div className="flex items-center justify-center h-16 border border-dashed border-gray-800 rounded-lg">
-            <p className="text-xs text-gray-600">Add assets to basket</p>
+          <div className="flex items-center justify-center h-16 border-2 border-dashed border-white/20 bg-black">
+            <p className="text-[10px] uppercase font-black tracking-[0.3em] text-gray-600">
+              Index is empty
+            </p>
           </div>
         ) : (
           basket.map((order) => (
             <div
               key={order.product_id}
-              className={`flex items-center gap-2 p-2.5 rounded-lg border transition-colors ${
-                order.is_buy
-                  ? "bg-green-500/5 border-green-500/20"
-                  : "bg-red-500/5 border-red-500/20"
-              }`}
+              className="flex items-center gap-3 p-2 border-2 border-white/20 bg-black"
             >
-              <span className="text-white text-xs font-bold w-16 shrink-0">
+              <span className="text-white text-xs font-black uppercase w-12 shrink-0 text-center">
                 {order.symbol}
               </span>
+
               <SideToggle
                 isBuy={order.is_buy}
                 onChange={(v) => updateItem(order.product_id, "is_buy", v)}
               />
-              <div className="flex-1 flex items-center bg-gray-900 border border-gray-800 rounded px-2 py-1 focus-within:border-purple-500 transition-colors">
-                <span className="text-gray-500 text-xs mr-1">$</span>
+
+              <div className="flex-1 flex items-center bg-black border-2 border-transparent focus-within:border-white/20 transition-colors px-2">
+                <span className="text-green-400 font-black text-xs mr-2">
+                  $
+                </span>
                 <input
                   type="number"
                   step="any"
@@ -299,12 +290,13 @@ export const BatchOrderPanel = ({
                     updateItem(order.product_id, "amount", e.target.value);
                   }}
                   placeholder="0.00"
-                  className="bg-transparent text-white text-sm outline-none w-full placeholder-gray-600 font-mono"
+                  className="bg-transparent text-white text-sm font-bold outline-none w-full rounded-none"
                 />
               </div>
+
               <button
                 onClick={() => removeFromBasket(order.product_id)}
-                className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none px-1"
+                className="text-gray-600 hover:text-red-500 transition-colors font-black text-xl leading-none px-2"
               >
                 ×
               </button>
@@ -313,55 +305,54 @@ export const BatchOrderPanel = ({
         )}
       </div>
 
-      {/* Stop on failure */}
+      {/* STOP ON FAILURE */}
       {basket.length > 0 && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="flex items-center gap-3 border-2 border-white/20 p-3 bg-black mt-auto">
           <input
             type="checkbox"
             id="stopOnFailure"
             checked={stopOnFailure}
             onChange={(e) => setStopOnFailure(e.target.checked)}
-            className="accent-purple-500"
+            className="w-4 h-4 accent-green-400 cursor-pointer rounded-none"
           />
           <label
             htmlFor="stopOnFailure"
-            className="text-xs text-gray-500 cursor-pointer"
+            className="text-[10px] font-black uppercase tracking-widest text-gray-400 cursor-pointer"
           >
             Stop on first failure
           </label>
         </div>
       )}
 
-      {/* Feedback */}
       {feedback && (
         <div
-          className={`mt-4 text-sm p-2 rounded ${
+          className={`text-[10px] font-black p-3 border-2 uppercase tracking-[0.2em] ${
             feedback.type === "error"
-              ? "bg-red-500/10 text-red-400"
-              : "bg-green-500/10 text-green-400"
+              ? "border-red-500 text-red-500"
+              : "border-green-400 text-green-400"
           }`}
         >
           {feedback.msg}
         </div>
       )}
 
-      {/* Submit */}
+      {/* SUBMIT BUTTON */}
       <button
         onClick={handleSubmit}
         disabled={!canSubmit || isSubmitting}
-        className={`w-full mt-6 py-3 rounded-lg font-bold text-white transition-colors ${
+        className={`w-full py-4 border-2 text-sm font-black uppercase tracking-[0.2em] transition-colors rounded-none ${
           !canSubmit || isSubmitting
-            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-            : "bg-purple-500 hover:bg-purple-400"
+            ? "border-gray-800 text-gray-600 cursor-not-allowed bg-black"
+            : "border-green-400 bg-black text-green-400 hover:bg-green-400 hover:text-black"
         }`}
       >
         {isSubmitting ? (
-          <span className="flex items-center justify-center gap-2">
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Processing...
+          <span className="flex items-center justify-center gap-3">
+            <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin" />
+            PROCESSING
           </span>
         ) : (
-          `Execute ${basket.length} Order${basket.length !== 1 ? "s" : ""}`
+          `EXECUTE ${basket.length} ORDER${basket.length !== 1 ? "S" : ""}`
         )}
       </button>
     </div>
