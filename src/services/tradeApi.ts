@@ -9,7 +9,7 @@ export const placeMarketOrder = async (
   payload: MarketOrderPayload,
   accessToken: string,
 ) => {
-  const response = await fetch("http://localhost:8000/orders/market", {
+  const response = await fetch("http://localhost:8000/api/v1/orders/market", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

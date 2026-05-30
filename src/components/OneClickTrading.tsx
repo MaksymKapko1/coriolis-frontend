@@ -4,7 +4,10 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { getPrivyNadoClient } from "../services/nado";
 import { saveSignerToBackend, fetchUserStatus } from "../services/api";
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// "default" subaccount encoding: "default" в ASCII hex (7 байт) + 5 байт паддинга
+const DEFAULT_SUBACCOUNT_HEX = "64656661756c740000000000";
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export const OneClickButton = () => {
   const { getAccessToken } = usePrivy();
@@ -15,24 +18,31 @@ export const OneClickButton = () => {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const checkStatus = async () => {
       try {
         const token = await getAccessToken();
-        if (!token) return;
+        if (!token || cancelled) return;
+
         const user = await fetchUserStatus(token);
-        if (user?.linked_signer_address) {
+        if (!cancelled && user?.linked_signer_address) {
           setSessionActive(true);
         }
-      } catch (err: any) {
-        if (!err?.message?.includes("404")) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!message.includes("404")) {
           console.error("Status check failed:", err);
         }
       } finally {
-        setChecking(false);
+        if (!cancelled) setChecking(false);
       }
     };
 
     checkStatus();
+    return () => {
+      cancelled = true;
+    };
   }, [getAccessToken]);
 
   const handleEnable = async () => {
@@ -53,7 +63,7 @@ export const OneClickButton = () => {
       const linkedAddress = privateKeyToAccount(newPrivateKey).address;
 
       const signerBytes32 =
-        `0x${linkedAddress.slice(2).toLowerCase()}${"0".repeat(24)}` as `0x${string}`;
+        `0x${linkedAddress.slice(2).toLowerCase()}${DEFAULT_SUBACCOUNT_HEX}` as `0x${string}`;
 
       const provider = await activeWallet.getEthereumProvider();
       const nadoClient = await getPrivyNadoClient(
@@ -66,11 +76,9 @@ export const OneClickButton = () => {
         signer: signerBytes32,
       });
 
-      if (!token) throw new Error("Privy token generation failed");
-
       await saveSignerToBackend(token, newPrivateKey);
       setSessionActive(true);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("1-click error:", err);
     } finally {
       setLoading(false);
