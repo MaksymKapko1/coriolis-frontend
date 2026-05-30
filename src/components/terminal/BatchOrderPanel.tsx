@@ -30,7 +30,7 @@ async function placeBatchOrder(
   },
   token: string,
 ) {
-  const res = await fetch("/api/orders/batch", {
+  const res = await fetch("/api/v1/orders/batch", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

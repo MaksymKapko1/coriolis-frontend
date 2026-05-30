@@ -3,6 +3,8 @@ import { Header } from "./components/Header";
 import { useNadoAccount } from "./hooks/useNadoAccount";
 import { MarketOrderPanel } from "./components/terminal/MarketOrderPanel";
 import { ProductSelector } from "./components/terminal/ProductSelector";
+import { BatchOrderPanel } from "./components/terminal/BatchOrderPanel.tsx";
+import type { AccountState } from "../hooks/useNadoAccount";
 
 function App() {
   const { loading, account, symbols } = useNadoAccount();
@@ -36,6 +38,10 @@ function App() {
                 />
 
                 <MarketOrderPanel productId={activeProductId} />
+                <BatchOrderPanel
+                  symbols={symbols}
+                  accountAvailable={account.availableMargin ?? 0}
+                />
               </>
             ) : (
               <div className="bg-gray-950 p-6 rounded-xl border border-gray-800 flex flex-col items-center justify-center min-h-[300px]">
