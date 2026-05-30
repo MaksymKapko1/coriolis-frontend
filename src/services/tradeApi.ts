@@ -17,13 +17,17 @@ export interface BatchOrderItemPayload {
   is_market: boolean;
 }
 
+export interface ClosePositionPayload {
+  product_id: number;
+  sender_address: string;
+  subaccount_name?: string;
+}
+
 const formatApiError = (errorData: any, fallback: string) => {
   const detail = errorData?.detail;
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {
-    return detail
-      .map((item) => item?.msg || JSON.stringify(item))
-      .join(", ");
+    return detail.map((item) => item?.msg || JSON.stringify(item)).join(", ");
   }
   if (detail && typeof detail === "object") return JSON.stringify(detail);
   return fallback;
@@ -66,6 +70,29 @@ export const placeBatchOrder = async (
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(formatApiError(errorData, "Batch execution failed"));
+  }
+
+  return response.json();
+};
+
+export const closePosition = async (
+  payload: ClosePositionPayload,
+  accessToken: string,
+) => {
+  const response = await fetch("http://localhost:8000/api/v1/orders/close", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      formatApiError(errorData, "Close position execution failed"),
+    );
   }
 
   return response.json();

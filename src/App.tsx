@@ -1,28 +1,82 @@
 import { useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { Header } from "./components/Header";
 import { useNadoAccount } from "./hooks/useNadoAccount";
 import { MarketOrderPanel } from "./components/terminal/MarketOrderPanel";
-import { BatchOrderPanel } from "./components/terminal/BatchOrderPanel.tsx";
+import { BatchOrderPanel } from "./components/terminal/BatchOrderPanel";
+import { PositionsPanel } from "./components/terminal/PositionsPanel";
+import { closePosition } from "./services/tradeApi";
 
 type OrderMode = "market" | "indexes";
 
 function App() {
-  const { loading, account, symbols } = useNadoAccount();
+  const {
+    loading,
+    account,
+    symbols,
+    unrealizedPnl,
+    oraclePrices,
+    entryPrices,
+  } = useNadoAccount();
+
+  const { getAccessToken, user } = usePrivy();
 
   const [activeProductId, setActiveProductId] = useState<number>(16);
   const [orderMode, setOrderMode] = useState<OrderMode>("market");
+  const [isClosingAll, setIsClosingAll] = useState(false);
+
+  const [closingProductId, setClosingProductId] = useState<number | null>(null);
 
   const perpProducts = Object.values(symbols).filter(
     (sym) => sym.type === "perp",
   );
 
+  const handleClosePosition = async (productId: number) => {
+    setClosingProductId(productId);
+    try {
+      const token = await getAccessToken();
+      const walletAddress = user?.wallet?.address;
+
+      if (!token || !walletAddress) {
+        throw new Error("Authentication required. Please reconnect wallet.");
+      }
+
+      const payload = {
+        product_id: productId,
+        sender_address: walletAddress,
+        subaccount_name: "default",
+      };
+
+      await closePosition(payload, token);
+
+      console.log(`>>> [CLOSE SUCCESS] Позиция (ID: ${productId}) закрыта`);
+    } catch (err: any) {
+      console.error(">>> [CLOSE ERROR]", err);
+      alert(err.message);
+    } finally {
+      setClosingProductId(null);
+    }
+  };
+
+  const handleCloseAll = async () => {
+    setIsClosingAll(true);
+    try {
+      console.log(">>> [CLOSE ALL] Инициировано закрытие всех позиций");
+      // Твоя логика закрытия
+      setTimeout(() => setIsClosingAll(false), 2000);
+    } catch (err) {
+      console.error("Failed to close all", err);
+      setIsClosingAll(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-green-400 selection:text-black">
       <Header account={account} />
 
-      <main className="max-w-7xl mx-auto p-4 mt-6">
+      <main className="max-w-7xl mx-auto p-4 mt-6 flex flex-col gap-6">
         {/* GLOBAL TABS */}
-        <div className="flex mb-6 border-2 border-white/20 bg-black w-fit">
+        <div className="flex border-2 border-white/20 bg-black w-fit">
           <button
             type="button"
             onClick={() => setOrderMode("market")}
@@ -47,9 +101,9 @@ function App() {
           </button>
         </div>
 
-        {/* MAIN TERMINAL GRID (items-stretch делает их одинаковой высоты) */}
+        {/* ВЕРХНЯЯ СЕТКА: График (8) + Терминал (4) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* LEFT SIDE: CHART WORKSPACE */}
+          {/* ЛЕВАЯ ЧАСТЬ: ГРАФИК */}
           <section className="lg:col-span-8 border-2 border-white/20 bg-black flex flex-col h-full min-h-[520px]">
             <div className="flex items-center justify-between border-b-2 border-white/20 px-5 py-4 bg-black relative">
               <div className="flex-1">
@@ -57,7 +111,6 @@ function App() {
                   Chart & Orderbook
                 </p>
 
-                {/* NATIVE MARKET SELECTOR STYLED AS HEADER */}
                 <div className="relative w-fit inline-block">
                   <select
                     value={activeProductId}
@@ -102,7 +155,6 @@ function App() {
             </div>
           </section>
 
-          {/* RIGHT SIDE: TERMINAL PANELS */}
           <aside className="lg:col-span-4 flex flex-col h-full">
             <div className="border-2 border-white/20 bg-black p-5 h-full">
               {!loading ? (
@@ -125,6 +177,21 @@ function App() {
             </div>
           </aside>
         </div>
+
+        {!loading && (
+          <PositionsPanel
+            account={account}
+            balances={account.balances}
+            entryPrices={entryPrices}
+            oraclePrices={oraclePrices}
+            symbols={symbols}
+            unrealizedPnl={unrealizedPnl}
+            onCloseAll={handleCloseAll}
+            isClosing={isClosingAll}
+            onClosePosition={handleClosePosition}
+            closingProductId={closingProductId}
+          />
+        )}
       </main>
     </div>
   );
