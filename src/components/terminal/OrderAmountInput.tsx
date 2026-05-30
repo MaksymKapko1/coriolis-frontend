@@ -20,7 +20,7 @@ export const OrderAmountInput = ({
           placeholder="0.00"
           className="bg-transparent text-white text-lg outline-none w-full placeholder-gray-600 font-mono"
         />
-        <span className="text-gray-500 text-sm font-bold pl-2">TOKENS</span>
+        <span className="text-gray-500 text-sm font-bold pl-2">$/USD</span>
       </div>
     </div>
   );

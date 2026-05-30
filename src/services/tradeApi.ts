@@ -6,9 +6,28 @@ export interface MarketOrderPayload {
 }
 
 export interface BatchOrderPayload {
-  orders: MarketOrderPayload[];
+  orders: BatchOrderItemPayload[];
   stop_on_failure: boolean;
 }
+
+export interface BatchOrderItemPayload {
+  product_id: number;
+  notional_usd: number;
+  is_buy: boolean;
+  is_market: boolean;
+}
+
+const formatApiError = (errorData: any, fallback: string) => {
+  const detail = errorData?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => item?.msg || JSON.stringify(item))
+      .join(", ");
+  }
+  if (detail && typeof detail === "object") return JSON.stringify(detail);
+  return fallback;
+};
 
 export const placeMarketOrder = async (
   payload: MarketOrderPayload,
@@ -25,7 +44,7 @@ export const placeMarketOrder = async (
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.detail || "Trade execution failed");
+    throw new Error(formatApiError(errorData, "Trade execution failed"));
   }
 
   return response.json();
@@ -46,7 +65,7 @@ export const placeBatchOrder = async (
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.detail || "Batch execution failed");
+    throw new Error(formatApiError(errorData, "Batch execution failed"));
   }
 
   return response.json();
