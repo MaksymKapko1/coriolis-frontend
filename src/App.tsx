@@ -135,12 +135,12 @@ function App() {
                 </div>
               </div>
 
-              <div className="text-right text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold shrink-0">
-                <p>Product ID</p>
-                <p className="mt-1 text-lg font-black text-green-400">
-                  {activeProductId}
-                </p>
-              </div>
+              {/*<div className="text-right text-[10px] uppercase tracking-[0.2em] text-gray-500 font-bold shrink-0">*/}
+              {/*  <p>Product ID</p>*/}
+              {/*  <p className="mt-1 text-lg font-black text-green-400">*/}
+              {/*    {activeProductId}*/}
+              {/*  </p>*/}
+              {/*</div>*/}
             </div>
 
             <div className="flex-1 flex items-center justify-center bg-[linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:32px_32px] p-6">

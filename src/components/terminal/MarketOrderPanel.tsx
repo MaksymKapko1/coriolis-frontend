@@ -55,9 +55,9 @@ export const MarketOrderPanel = ({ productId }: MarketOrderPanelProps) => {
         <h2 className="text-white font-black uppercase tracking-[0.1em] text-lg">
           Execution
         </h2>
-        <span className="border-2 border-white/20 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest">
-          IOC
-        </span>
+        {/*<span className="border-2 border-white/20 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest">*/}
+        {/*  /!*IOC*!/*/}
+        {/*</span>*/}
       </div>
 
       <OrderSideToggle isBuy={isBuy} onChange={setIsBuy} />
@@ -84,8 +84,6 @@ export const MarketOrderPanel = ({ productId }: MarketOrderPanelProps) => {
     </div>
   );
 };
-
-// --- СТРОГИЕ ПОДКОМПОНЕНТЫ ---
 
 export const OrderSideToggle = ({
   isBuy,

@@ -23,6 +23,19 @@ export interface ClosePositionPayload {
   subaccount_name?: string;
 }
 
+export interface LimitOrderPayload {
+  product_id: number;
+  price_usd: number;
+  notional_usd: number;
+  is_buy: boolean;
+  user_id?: string;
+}
+
+export interface CancelLimitOrderPayload {
+  product_ids: number[];
+  digests: string[];
+}
+
 const formatApiError = (errorData: any, fallback: string) => {
   const detail = errorData?.detail;
   if (typeof detail === "string") return detail;
@@ -93,6 +106,51 @@ export const closePosition = async (
     throw new Error(
       formatApiError(errorData, "Close position execution failed"),
     );
+  }
+
+  return response.json();
+};
+
+export const placeLimitOrder = async (
+  payload: LimitOrderPayload,
+  accessToken: string,
+) => {
+  const response = await fetch("http://localhost:8000/api/v1/orders/limit-open", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(formatApiError(errorData, "Limit order execution failed"));
+  }
+
+  return response.json();
+};
+
+export const cancelLimitOrder = async (
+  payload: CancelLimitOrderPayload,
+  accessToken: string,
+) => {
+  const response = await fetch(
+    "http://localhost:8000/api/v1/orders/cancel-limit,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(formatApiError(errorData, "Failed to cancel limit order"));
   }
 
   return response.json();
