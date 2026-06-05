@@ -14,7 +14,8 @@ const wrapperBorder = {
   inline: "",
 } as const;
 
-interface StyledSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+interface StyledSelectProps
+  extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> {
   label?: string;
   size?: keyof typeof sizeClasses;
   bordered?: boolean;

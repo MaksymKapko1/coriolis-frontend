@@ -60,7 +60,6 @@ export const PositionsPanel = ({
   symbols,
   unrealizedPnl,
   bracketsByProduct,
-  onCloseAll,
   isClosing = false,
   onClosePosition,
   closingProductId,
