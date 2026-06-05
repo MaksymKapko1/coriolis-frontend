@@ -1,3 +1,9 @@
+const API_BASE_URL = "http://localhost:8000/api/v1";
+
+// ---------------------------------------------------------------------------
+// PAYLOAD INTERFACES
+// ---------------------------------------------------------------------------
+
 export interface MarketOrderPayload {
   product_id: number;
   amount: number;
@@ -25,16 +31,49 @@ export interface ClosePositionPayload {
 
 export interface LimitOrderPayload {
   product_id: number;
+  symbol?: string;
   price_usd: number;
   notional_usd: number;
   is_buy: boolean;
   user_id?: string;
+  take_profit_price?: number | null;
+  stop_loss_price?: number | null;
 }
 
 export interface CancelLimitOrderPayload {
   product_ids: number[];
   digests: string[];
 }
+
+export interface LimitOrderResponse {
+  id: number;
+  product_id: number;
+  symbol: string;
+  digest: string;
+  price_usd: number;
+  notional_usd: number;
+  is_buy: boolean;
+  status: string;
+  created_at: string;
+  take_profit_price?: number | null;
+  stop_loss_price?: number | null;
+  tp_digest?: string | null;
+  sl_digest?: string | null;
+}
+
+export interface ProductBrackets {
+  product_id: number;
+  take_profit_price?: number | null;
+  stop_loss_price?: number | null;
+  tp_digest?: string | null;
+  sl_digest?: string | null;
+  order_status?: string | null;
+  limit_price_usd?: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// ERROR FORMATTER
+// ---------------------------------------------------------------------------
 
 const formatApiError = (errorData: any, fallback: string) => {
   const detail = errorData?.detail;
@@ -46,11 +85,15 @@ const formatApiError = (errorData: any, fallback: string) => {
   return fallback;
 };
 
+// ---------------------------------------------------------------------------
+// API METHODS
+// ---------------------------------------------------------------------------
+
 export const placeMarketOrder = async (
   payload: MarketOrderPayload,
   accessToken: string,
 ) => {
-  const response = await fetch("http://localhost:8000/api/v1/orders/market", {
+  const response = await fetch(`${API_BASE_URL}/orders/market`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -71,7 +114,7 @@ export const placeBatchOrder = async (
   payload: BatchOrderPayload,
   accessToken: string,
 ) => {
-  const response = await fetch("http://localhost:8000/api/v1/orders/batch", {
+  const response = await fetch(`${API_BASE_URL}/orders/batch`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -92,7 +135,7 @@ export const closePosition = async (
   payload: ClosePositionPayload,
   accessToken: string,
 ) => {
-  const response = await fetch("http://localhost:8000/api/v1/orders/close", {
+  const response = await fetch(`${API_BASE_URL}/orders/close`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -115,7 +158,7 @@ export const placeLimitOrder = async (
   payload: LimitOrderPayload,
   accessToken: string,
 ) => {
-  const response = await fetch("http://localhost:8000/api/v1/orders/limit-open", {
+  const response = await fetch(`${API_BASE_URL}/orders/limit-open`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -132,21 +175,56 @@ export const placeLimitOrder = async (
   return response.json();
 };
 
-export const cancelLimitOrder = async (
+export const fetchOpenOrders = async (
+  accessToken: string,
+): Promise<LimitOrderResponse[]> => {
+  const response = await fetch(`${API_BASE_URL}/orders/limit-orders`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(formatApiError(errorData, "Failed to fetch open orders"));
+  }
+
+  return response.json();
+};
+
+export const fetchPositionBrackets = async (
+  accessToken: string,
+): Promise<ProductBrackets[]> => {
+  const response = await fetch(`${API_BASE_URL}/orders/position-brackets`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      formatApiError(errorData, "Failed to fetch position brackets"),
+    );
+  }
+
+  return response.json();
+};
+
+export const cancelLimitOrders = async (
   payload: CancelLimitOrderPayload,
   accessToken: string,
 ) => {
-  const response = await fetch(
-    "http://localhost:8000/api/v1/orders/cancel-limit,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(payload),
+  const response = await fetch(`${API_BASE_URL}/orders/cancel-limit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
     },
-  );
+    body: JSON.stringify(payload),
+  });
 
   if (!response.ok) {
     const errorData = await response.json();

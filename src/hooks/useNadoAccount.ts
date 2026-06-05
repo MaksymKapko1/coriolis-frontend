@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { NADO_TEST_SUBSCRIBE_WSS } from "../config/constants";
+import { NADO_MAIN_SUBSCRIBE_WSS } from "../config/constants";
 import { toSubaccountBytes32 } from "../services/cryptoaddress.ts";
 import {
   fetchNadoSymbolsMap,
@@ -237,13 +237,13 @@ export const useNadoAccount = () => {
         // Start polling only if we already have an open perp position.
         await ensureSnapshotPolling();
 
-        const ws = new WebSocket(NADO_TEST_SUBSCRIBE_WSS);
+        const ws = new WebSocket(NADO_MAIN_SUBSCRIBE_WSS);
         socketRef.current = ws;
 
         ws.onopen = () => {
           console.log(
             ">>> [WS] Успешное соединение с",
-            NADO_TEST_SUBSCRIBE_WSS,
+            NADO_MAIN_SUBSCRIBE_WSS,
           );
           setLoading(false);
 

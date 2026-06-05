@@ -7,4 +7,4 @@ export const NADO_TEST_SUBSCRIBE_WSS =
 export const NADO_MAIN_GATEWAY_URL = "https://gateway.prod.nado.xyz/v1";
 export const NADO_MAIN_GATEWAY_WSS = "wss://gateway.prod.nado.xyz/ws/v2";
 export const NADO_MAIN_SUBSCRIBE_WSS =
-  "https://gateway.prod.nado.xyz/v1/subscribe";
+  "wss://gateway.prod.nado.xyz/v1/subscribe";

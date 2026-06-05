@@ -1,6 +1,6 @@
 import { createNadoClient } from "@nadohq/client";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
-import { inkSepolia } from "viem/chains";
+import { ink } from "../config/chains";
 
 export const getPrivyNadoClient = async (
   privyProvider: any,
@@ -8,16 +8,16 @@ export const getPrivyNadoClient = async (
 ) => {
   const walletClient = createWalletClient({
     account: walletAddress,
-    chain: inkSepolia,
+    chain: ink,
     transport: custom(privyProvider),
   });
 
   const publicClient = createPublicClient({
-    chain: inkSepolia,
+    chain: ink,
     transport: http(),
   });
 
-  const nadoClient = await createNadoClient("inkTestnet", {
+  const nadoClient = await createNadoClient("inkMainnet", {
     walletClient: walletClient as any,
     publicClient: publicClient as any,
   });

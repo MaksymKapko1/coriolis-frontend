@@ -1,4 +1,4 @@
-import { NADO_TEST_GATEWAY_URL } from "../config/constants.ts";
+import { NADO_MAIN_GATEWAY_URL } from "../config/constants.ts";
 
 export interface NadoSymbol {
   type: "spot" | "perp";
@@ -14,7 +14,7 @@ export interface NadoProduct {
 export const fetchNadoSymbolsMap = async (): Promise<
   Record<number, NadoSymbol>
 > => {
-  const response = await fetch(`${NADO_TEST_GATEWAY_URL}/symbols`);
+  const response = await fetch(`${NADO_MAIN_GATEWAY_URL}/symbols`);
   if (!response.ok) throw new Error("Failed to fetch Nado symbols");
 
   const data: NadoSymbol[] = await response.json();
@@ -30,14 +30,14 @@ export const fetchNadoSymbolsMap = async (): Promise<
 
 export const fetchInitialSnapshot = async (subaccountBytes32: string) => {
   const response = await fetch(
-    `${NADO_TEST_GATEWAY_URL}/query?type=subaccount_info&subaccount=${subaccountBytes32}`,
+    `${NADO_MAIN_GATEWAY_URL}/query?type=subaccount_info&subaccount=${subaccountBytes32}`,
   );
   if (!response.ok) throw new Error("Failed to fetch initial subaccount info");
   return response.json();
 };
 
 export const fetchAllProducts = async () => {
-  const response = await fetch(`${NADO_TEST_GATEWAY_URL}/query?type=all_products`);
+  const response = await fetch(`${NADO_MAIN_GATEWAY_URL}/query?type=all_products`);
   if (!response.ok) throw new Error("Failed to fetch all products");
   return response.json();
 };

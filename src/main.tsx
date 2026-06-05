@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { PrivyProvider } from "@privy-io/react-auth";
-import { inkSepolia } from "./config/chains";
+import { ink } from "./config/chains";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -11,7 +11,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       appId="cmpm7bvj000720djvvdn8mlzh"
       config={{
         loginMethods: ["wallet"],
-        supportedChains: [inkSepolia],
+        supportedChains: [ink],
         appearance: {
           theme: "dark",
           accentColor: "#4ade80",

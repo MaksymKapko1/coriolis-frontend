@@ -4,6 +4,7 @@ export interface IndexAsset {
   product_id: number;
   symbol: string;
   weight: number;
+  is_buy: boolean;
 }
 
 export interface TradingIndex {

@@ -1,5 +1,6 @@
 import { type AccountState } from "../../hooks/useNadoAccount";
 import { type NadoSymbol } from "../../services/nadoApi";
+import { type ProductBrackets } from "../../services/tradeApi";
 
 const formatUsd = (n: number) =>
   n.toLocaleString(undefined, {
@@ -14,11 +15,42 @@ interface PositionsPanelProps {
   oraclePrices: Record<number, number>;
   symbols: Record<number, NadoSymbol>;
   unrealizedPnl: number;
+  bracketsByProduct: Record<number, ProductBrackets>;
   onCloseAll?: () => void;
   isClosing?: boolean;
   onClosePosition: (productId: number) => void;
   closingProductId: number | null;
 }
+
+const BracketCell = ({
+  price,
+  digest,
+  variant,
+}: {
+  price: number | null | undefined;
+  digest: string | null | undefined;
+  variant: "tp" | "sl";
+}) => {
+  if (price == null || price <= 0) {
+    return <span className="text-gray-600 font-sans text-xs">—</span>;
+  }
+
+  const color = variant === "tp" ? "text-green-400" : "text-red-400";
+  const armed = digest ? "armed" : "pending";
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className={`font-bold ${color}`}>${formatUsd(price)}</span>
+      <span
+        className={`text-[8px] uppercase tracking-wider font-sans font-bold ${
+          digest ? "text-gray-500" : "text-amber-500/80"
+        }`}
+      >
+        {digest ? armed : "no trigger"}
+      </span>
+    </div>
+  );
+};
 
 export const PositionsPanel = ({
   account,
@@ -27,6 +59,7 @@ export const PositionsPanel = ({
   oraclePrices,
   symbols,
   unrealizedPnl,
+  bracketsByProduct,
   onCloseAll,
   isClosing = false,
   onClosePosition,
@@ -47,6 +80,7 @@ export const PositionsPanel = ({
       const oracle = oraclePrices[productId] || 0;
       const pnl = amount * (oracle - entry);
       const isLong = amount > 0;
+      const brackets = bracketsByProduct[productId];
 
       return {
         productId,
@@ -56,6 +90,7 @@ export const PositionsPanel = ({
         entry,
         oracle,
         pnl,
+        brackets,
       };
     });
 
@@ -94,17 +129,17 @@ export const PositionsPanel = ({
           </div>
         </div>
 
-        <button
-          onClick={onCloseAll}
-          disabled={isClosing || activePositions.length === 0}
-          className={`px-6 py-3 border-2 text-xs font-black uppercase tracking-[0.2em] transition-colors rounded-none ${
-            isClosing || activePositions.length === 0
-              ? "border-gray-800 text-gray-600 cursor-not-allowed bg-black"
-              : "border-red-500 bg-black text-red-500 hover:bg-red-500 hover:text-black"
-          }`}
-        >
-          {isClosing ? "CLOSING..." : "CLOSE ALL POSITIONS"}
-        </button>
+        {/*<button*/}
+        {/*  onClick={onCloseAll}*/}
+        {/*  disabled={isClosing || activePositions.length === 0}*/}
+        {/*  className={`px-6 py-3 border-2 text-xs font-black uppercase tracking-[0.2em] transition-colors rounded-none ${*/}
+        {/*    isClosing || activePositions.length === 0*/}
+        {/*      ? "border-gray-800 text-gray-600 cursor-not-allowed bg-black"*/}
+        {/*      : "border-red-500 bg-black text-red-500 hover:bg-red-500 hover:text-black"*/}
+        {/*  }`}*/}
+        {/*>*/}
+        {/*  /!*{isClosing ? "CLOSING..." : "CLOSE ALL POSITIONS"}*!/*/}
+        {/*</button>*/}
       </div>
 
       <div className="overflow-x-auto">
@@ -118,13 +153,22 @@ export const PositionsPanel = ({
                 Size
               </th>
               <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                Entry Price
+                Entry
               </th>
               <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                Oracle Price
+                Oracle
+              </th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] text-green-400/80">
+                Take Profit
+              </th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] text-red-400/80">
+                Stop Loss
               </th>
               <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 text-right">
                 Est. PNL
+              </th>
+              <th className="p-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 text-center w-12">
+                Close
               </th>
             </tr>
           </thead>
@@ -132,7 +176,7 @@ export const PositionsPanel = ({
             {activePositions.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={8}
                   className="p-8 text-center text-[10px] uppercase tracking-[0.3em] font-bold text-gray-600"
                 >
                   No Open Positions
@@ -167,6 +211,20 @@ export const PositionsPanel = ({
                   <td className="p-4 text-gray-300">
                     ${formatUsd(pos.oracle)}
                   </td>
+                  <td className="p-4">
+                    <BracketCell
+                      price={pos.brackets?.take_profit_price}
+                      digest={pos.brackets?.tp_digest}
+                      variant="tp"
+                    />
+                  </td>
+                  <td className="p-4">
+                    <BracketCell
+                      price={pos.brackets?.stop_loss_price}
+                      digest={pos.brackets?.sl_digest}
+                      variant="sl"
+                    />
+                  </td>
                   <td
                     className={`p-4 text-right font-black ${
                       pos.pnl >= 0 ? "text-green-400" : "text-red-500"
@@ -195,6 +253,9 @@ export const PositionsPanel = ({
           </tbody>
         </table>
       </div>
+      <p className="px-4 py-2 text-[9px] text-gray-600 uppercase tracking-wider border-t border-white/5">
+        TP/SL from Coriolis (Nado trigger). Armed = registered on exchange.
+      </p>
     </div>
   );
 };

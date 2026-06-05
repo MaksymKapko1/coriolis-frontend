@@ -54,8 +54,8 @@ export const OneClickButton = () => {
       const activeWallet = wallets[0];
       if (!activeWallet) throw new Error("Wallet not found");
 
-      if (activeWallet.chainId !== "eip155:763373") {
-        await activeWallet.switchChain(763373);
+      if (activeWallet.chainId !== "eip155:57073") {
+        await activeWallet.switchChain(57073);
         await sleep(1500);
       }
 
