@@ -6,13 +6,12 @@
     </radialGradient>
   </defs>
 
-  <!-- Фон -->
+
   <rect width="1024" height="1024" fill="#000"></rect>
 
-  <!-- Свечение -->
+
   <circle cx="512" cy="512" r="420" fill="url(#glow)"></circle>
 
-  <!-- Радар -->
   <g stroke="#00AA66" fill="none" opacity="0.35">
     <circle cx="512" cy="512" r="420" stroke-width="3"></circle>
     <circle cx="512" cy="512" r="320" stroke-width="2"></circle>
@@ -23,7 +22,6 @@
     <line x1="512" y1="92" x2="512" y2="932" stroke-width="1"></line>
   </g>
 
-  <!-- Метки радара -->
   <g fill="#45F08A">
     <circle cx="320" cy="350" r="5"></circle>
     <circle cx="730" cy="390" r="4"></circle>
@@ -35,7 +33,6 @@
     <circle cx="680" cy="780" r="3"></circle>
   </g>
 
-  <!-- Внешние деления -->
   <g stroke="#45F08A" stroke-width="2">
     <line x1="512" y1="70" x2="512" y2="90"></line>
     <line x1="512" y1="934" x2="512" y2="954"></line>
@@ -43,7 +40,7 @@
     <line x1="934" y1="512" x2="954" y2="512"></line>
   </g>
 
-  <!-- Логотип C -->
+
   <path d="M680 300
        H430
        C350 300 280 370 280 450
