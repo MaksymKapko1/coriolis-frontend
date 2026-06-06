@@ -2,13 +2,22 @@ import { StyledSelect } from "../../ui/StyledSelect.tsx";
 import { SideToggle } from "./SideToggle.tsx";
 import type { BasketItem } from "./types.ts";
 import type { TradingIndex } from "../../../services/indexApi.ts";
+import type { PerpProductRisk } from "../../../utils/nadoRisk.ts";
+import {
+  estimateMarginForNotional,
+  getMaxLeverage,
+} from "../../../utils/nadoRisk.ts";
 
 interface IndexSettingsPanelProps {
   accountAvailable: number;
   allocationPercent: number;
-  allocationBudget: number;
-  totalAllocated: number;
-  isOverBudget: boolean;
+  volumeBudget: number;
+  maxVolumeBudget: number;
+  totalVolume: number;
+  totalMarginRequired: number;
+  isOverMargin: boolean;
+  isOverVolume: boolean;
+  productRisks: Record<number, PerpProductRisk>;
   onAllocationPercentChange: (v: number) => void;
   myIndexes: TradingIndex[];
   selectedIndexId: number | "";
@@ -42,12 +51,22 @@ interface IndexSettingsPanelProps {
   onSubmit: () => void;
 }
 
+const formatUsd = (n: number) =>
+  n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 export const IndexSettingsPanel = ({
   accountAvailable,
   allocationPercent,
-  allocationBudget,
-  totalAllocated,
-  isOverBudget,
+  volumeBudget,
+  maxVolumeBudget,
+  totalVolume,
+  totalMarginRequired,
+  isOverMargin,
+  isOverVolume,
+  productRisks,
   onAllocationPercentChange,
   myIndexes,
   selectedIndexId,
@@ -80,7 +99,7 @@ export const IndexSettingsPanel = ({
     <div className="flex flex-col gap-3 h-full min-h-0 p-4 font-sans">
       <div className="flex justify-between items-center">
         <h2 className="text-white font-black uppercase tracking-[0.1em] text-sm">
-          Settings
+          Trading Settings
         </h2>
         <div className="flex gap-1.5">
           {typeof selectedIndexId === "number" &&
@@ -139,17 +158,26 @@ export const IndexSettingsPanel = ({
         <div className="border-2 border-white/20 bg-black p-2 space-y-2">
           <div className="flex flex-wrap justify-between gap-x-2 text-[9px] font-black uppercase tracking-widest">
             <span className="text-gray-500">
-              Avail{" "}
+              Margin{" "}
               <span className="text-white">${accountAvailable.toFixed(2)}</span>
             </span>
             <span className="text-gray-500">
-              Budget{" "}
+              Max Vol{" "}
+              <span className="text-white">${formatUsd(maxVolumeBudget)}</span>
+            </span>
+            <span className="text-gray-500">
+              Volume{" "}
               <span className="text-white">
-                ${allocationBudget.toFixed(2)} ({allocationPercent}%)
+                ${formatUsd(volumeBudget)} ({allocationPercent}%)
               </span>
             </span>
-            <span className={isOverBudget ? "text-red-500" : "text-green-400"}>
-              Alloc ${totalAllocated.toFixed(2)}
+          </div>
+          <div className="flex flex-wrap justify-between gap-x-2 text-[9px] font-black uppercase tracking-widest">
+            <span className={isOverVolume ? "text-red-500" : "text-green-400"}>
+              Alloc Vol ${formatUsd(totalVolume)}
+            </span>
+            <span className={isOverMargin ? "text-red-500" : "text-gray-400"}>
+              Est Margin ${formatUsd(totalMarginRequired)}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -179,6 +207,9 @@ export const IndexSettingsPanel = ({
               className="w-10 bg-black border-2 border-white/20 text-white text-[9px] font-black text-center py-0.5 outline-none rounded-none"
             />
           </div>
+          <p className="text-[8px] text-gray-600 uppercase tracking-wider">
+            Volume = notional USD per leg. Nado opens at max leverage per market.
+          </p>
         </div>
       )}
 
@@ -234,40 +265,65 @@ export const IndexSettingsPanel = ({
       )}
 
       <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-        {basket.map((order) => (
-          <div
-            key={order.product_id}
-            className="flex items-center gap-1.5 p-1 border-2 border-white/20 bg-black"
-          >
-            <span className="text-white text-[9px] font-black w-8 shrink-0 text-center">
-              {order.symbol.split("-")[0]}
-            </span>
-            <SideToggle
-              isBuy={order.is_buy}
-              onChange={(v) => onUpdateItem(order.product_id, "is_buy", v)}
-            />
-            <div className="flex items-center flex-1 border-2 border-transparent focus-within:border-white/20 px-1">
-              <span className="text-green-400 text-[9px] mr-1">$</span>
-              <input
-                type="number"
-                step="any"
-                min="0"
-                value={order.amount}
-                onChange={(e) =>
-                  onUpdateItem(order.product_id, "amount", e.target.value)
-                }
-                className="bg-transparent text-white text-[10px] font-bold outline-none w-full rounded-none"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => onRemoveFromBasket(order.product_id)}
-              className="text-gray-600 hover:text-red-500 font-black px-1"
+        {basket.map((order) => {
+          const notional = parseFloat(order.amount) || 0;
+          const risk = productRisks[order.product_id];
+          const maxLev = risk ? getMaxLeverage(risk, order.is_buy) : null;
+          const estMargin =
+            risk && notional > 0
+              ? estimateMarginForNotional(notional, risk, order.is_buy)
+              : null;
+
+          return (
+            <div
+              key={order.product_id}
+              className="p-1.5 border-2 border-white/20 bg-black space-y-1"
             >
-              ×
-            </button>
-          </div>
-        ))}
+              <div className="flex items-center gap-1.5">
+                <span className="text-white text-[9px] font-black w-8 shrink-0 text-center">
+                  {order.symbol.split("-")[0]}
+                </span>
+                <SideToggle
+                  isBuy={order.is_buy}
+                  onChange={(v) => onUpdateItem(order.product_id, "is_buy", v)}
+                />
+                <div className="flex items-center flex-1 border-2 border-transparent focus-within:border-white/20 px-1">
+                  <span className="text-green-400 text-[8px] mr-1 uppercase">
+                    Vol
+                  </span>
+                  <span className="text-gray-600 text-[9px] mr-0.5">$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={order.amount}
+                    onChange={(e) =>
+                      onUpdateItem(order.product_id, "amount", e.target.value)
+                    }
+                    className="bg-transparent text-white text-[10px] font-bold outline-none w-full rounded-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemoveFromBasket(order.product_id)}
+                  className="text-gray-600 hover:text-red-500 font-black px-1"
+                >
+                  ×
+                </button>
+              </div>
+              {risk && notional > 0 && (
+                <div className="flex flex-wrap gap-x-2 text-[8px] font-bold uppercase tracking-wider text-gray-500 pl-9">
+                  <span className="text-green-400/80">
+                    {Number.isFinite(maxLev) ? `${Math.round(maxLev!)}x max` : "—"}
+                  </span>
+                  {estMargin != null && (
+                    <span>Margin ~${formatUsd(estMargin)}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {basket.length > 0 && (

@@ -111,7 +111,8 @@ export const OneClickButton = () => {
         disabled
         className="border-2 border-green-400/40 px-4 py-2 text-sm uppercase font-bold tracking-widest bg-black text-green-400/50 rounded-none cursor-not-allowed"
       >
-        ● Session Active
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400/70 mr-1.5 align-middle" />
+        Session Active
       </button>
     );
   }

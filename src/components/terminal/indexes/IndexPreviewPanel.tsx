@@ -1,4 +1,10 @@
 import type { BasketItem } from "./types.ts";
+import type { PerpProductRisk } from "../../../utils/nadoRisk.ts";
+import {
+  estimateLiquidationPrice,
+  estimateMarginForNotional,
+  getMaxLeverage,
+} from "../../../utils/nadoRisk.ts";
 
 const formatUsd = (n: number) =>
   n.toLocaleString(undefined, {
@@ -13,8 +19,11 @@ interface IndexPreviewPanelProps {
   indexName: string;
   assetCount: number;
   basket: BasketItem[];
-  totalAllocated: number;
-  allocationBudget: number;
+  totalVolume: number;
+  volumeBudget: number;
+  totalMarginRequired: number;
+  productRisks: Record<number, PerpProductRisk>;
+  accountAvailable: number;
   oraclePrices: Record<number, number>;
 }
 
@@ -22,8 +31,11 @@ export const IndexPreviewPanel = ({
   indexName,
   assetCount,
   basket,
-  totalAllocated,
-  allocationBudget,
+  totalVolume,
+  volumeBudget,
+  totalMarginRequired,
+  productRisks,
+  accountAvailable,
   oraclePrices,
 }: IndexPreviewPanelProps) => (
   <div className="flex flex-col h-full min-h-0">
@@ -35,8 +47,8 @@ export const IndexPreviewPanel = ({
         {indexName}
       </h2>
       <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-1">
-        {assetCount} asset{assetCount !== 1 ? "s" : ""} · budget $
-        {formatUsd(allocationBudget)}
+        {assetCount} asset{assetCount !== 1 ? "s" : ""} · vol $
+        {formatUsd(volumeBudget)} · margin ~${formatUsd(totalMarginRequired)}
       </p>
     </div>
 
@@ -51,48 +63,74 @@ export const IndexPreviewPanel = ({
         <table className="w-full text-left text-[10px] font-black uppercase tracking-widest">
           <thead className="sticky top-0 bg-black border-b border-white/10 text-gray-500">
             <tr>
-              <th className="px-3 py-2">Market</th>
-              <th className="px-2 py-2">Side</th>
-              <th className="px-2 py-2 text-right">Oracle</th>
-              <th className="px-3 py-2 text-right">Alloc</th>
+              <th className="px-2 py-2">Mkt</th>
+              <th className="px-1 py-2">Side</th>
+              <th className="px-1 py-2 text-right">Vol</th>
+              <th className="px-1 py-2 text-right">Lev</th>
+              <th className="px-1 py-2 text-right">Liq</th>
             </tr>
           </thead>
           <tbody>
             {basket.map((item) => {
-              const amt = parseFloat(item.amount) || 0;
-              const weight =
-                totalAllocated > 0 ? (amt / totalAllocated) * 100 : 0;
+              const vol = parseFloat(item.amount) || 0;
+              const weight = totalVolume > 0 ? (vol / totalVolume) * 100 : 0;
               const oracle = oraclePrices[item.product_id];
+              const risk = productRisks[item.product_id];
+              const maxLev = risk ? getMaxLeverage(risk, item.is_buy) : null;
+              const estMargin =
+                risk && vol > 0
+                  ? estimateMarginForNotional(vol, risk, item.is_buy)
+                  : null;
+              const liq =
+                risk && vol > 0 && oracle
+                  ? estimateLiquidationPrice(
+                      vol,
+                      oracle,
+                      item.is_buy,
+                      accountAvailable,
+                      risk,
+                    )
+                  : null;
 
               return (
                 <tr
                   key={item.product_id}
                   className="border-b border-white/5"
                 >
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2">
                     <span className="text-white">
                       {shortSymbol(item.symbol)}
                     </span>
                     <span className="block text-[8px] text-gray-600 mt-0.5">
-                      {weight.toFixed(1)}% wt
+                      {weight.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-2 py-2.5">
+                  <td className="px-1 py-2">
                     <span
-                      className={`inline-block px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider border ${
+                      className={`inline-block px-1 py-0.5 text-[8px] border ${
                         item.is_buy
                           ? "border-green-400/60 text-green-400 bg-green-400/15"
                           : "border-red-500/60 text-red-400 bg-red-500/15"
                       }`}
                     >
-                      {item.is_buy ? "Long" : "Short"}
+                      {item.is_buy ? "L" : "S"}
                     </span>
                   </td>
-                  <td className="px-2 py-2.5 text-right text-gray-300">
-                    {oracle != null ? `$${formatUsd(oracle)}` : "—"}
+                  <td className="px-1 py-2 text-right text-white">
+                    ${formatUsd(vol)}
+                    {estMargin != null && (
+                      <span className="block text-[8px] text-gray-600 font-normal">
+                        m ${formatUsd(estMargin)}
+                      </span>
+                    )}
                   </td>
-                  <td className="px-3 py-2.5 text-right text-white">
-                    ${formatUsd(amt)}
+                  <td className="px-1 py-2 text-right text-green-400/80">
+                    {maxLev != null && Number.isFinite(maxLev)
+                      ? `${Math.round(maxLev)}x`
+                      : "—"}
+                  </td>
+                  <td className="px-1 py-2 text-right text-red-400/90">
+                    {liq != null ? `$${formatUsd(liq)}` : "—"}
                   </td>
                 </tr>
               );
@@ -104,8 +142,8 @@ export const IndexPreviewPanel = ({
 
     {basket.length > 0 && (
       <div className="px-4 py-2 border-t-2 border-white/20 text-[9px] font-black uppercase tracking-widest text-gray-500 flex justify-between">
-        <span>Total alloc</span>
-        <span className="text-green-400">${formatUsd(totalAllocated)}</span>
+        <span>Total volume</span>
+        <span className="text-green-400">${formatUsd(totalVolume)}</span>
       </div>
     )}
   </div>

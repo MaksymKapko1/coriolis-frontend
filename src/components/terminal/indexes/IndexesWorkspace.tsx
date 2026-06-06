@@ -9,6 +9,11 @@ import {
   deleteIndex,
   type TradingIndex,
 } from "../../../services/indexApi";
+import { usePerpProductRisks } from "../../../hooks/usePerpProductRisks.ts";
+import {
+  estimateMarginForNotional,
+  maxTotalNotionalForMargin,
+} from "../../../utils/nadoRisk.ts";
 import { IndexPickerPanel } from "./IndexPickerPanel.tsx";
 import { IndexPreviewPanel } from "./IndexPreviewPanel.tsx";
 import { IndexSettingsPanel } from "./IndexSettingsPanel.tsx";
@@ -32,6 +37,7 @@ export const IndexesWorkspace = ({
   accountAvailable = 0,
 }: IndexesWorkspaceProps) => {
   const { getAccessToken } = usePrivy();
+  const { risks: productRisks } = usePerpProductRisks();
   const perpSymbols = Object.values(symbols).filter((s) => s.type === "perp");
 
   const [basket, setBasket] = useState<BasketItem[]>([]);
@@ -54,9 +60,22 @@ export const IndexesWorkspace = ({
   const [saveIndexName, setSaveIndexName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const allocationBudget = useMemo(
-    () => accountAvailable * (allocationPercent / 100),
-    [accountAvailable, allocationPercent],
+  const maxVolumeBudget = useMemo(
+    () =>
+      maxTotalNotionalForMargin(
+        accountAvailable,
+        basket.map((o) => ({
+          product_id: o.product_id,
+          is_buy: o.is_buy,
+        })),
+        productRisks,
+      ),
+    [accountAvailable, basket, productRisks],
+  );
+
+  const volumeBudget = useMemo(
+    () => maxVolumeBudget * (allocationPercent / 100),
+    [maxVolumeBudget, allocationPercent],
   );
 
   const allIndexes = [...defaultIndexes, ...myIndexes];
@@ -83,11 +102,11 @@ export const IndexesWorkspace = ({
 
   const distributeEqual = useCallback(
     (items: BasketItem[]): BasketItem[] => {
-      if (!items.length || allocationBudget <= 0) return items;
-      const perOrder = (allocationBudget / items.length).toFixed(2);
+      if (!items.length || volumeBudget <= 0) return items;
+      const perOrder = (volumeBudget / items.length).toFixed(2);
       return items.map((o) => ({ ...o, amount: perOrder }));
     },
-    [allocationBudget],
+    [volumeBudget],
   );
 
   useEffect(() => {
@@ -108,8 +127,8 @@ export const IndexesWorkspace = ({
 
     const filteredAssets = idx.assets.filter((a) => symbols[a.product_id]);
     const equalAmount =
-      allocationBudget > 0 && filteredAssets.length > 0
-        ? (allocationBudget / filteredAssets.length).toFixed(2)
+      volumeBudget > 0 && filteredAssets.length > 0
+        ? (volumeBudget / filteredAssets.length).toFixed(2)
         : "";
 
     const useWeights = idx.is_system || splitMode === "manual";
@@ -120,8 +139,8 @@ export const IndexesWorkspace = ({
       amount:
         !useWeights && equalAmount
           ? equalAmount
-          : allocationBudget > 0
-            ? (allocationBudget * (a.weight || 0)).toFixed(2)
+          : volumeBudget > 0
+            ? (volumeBudget * (a.weight || 0)).toFixed(2)
             : "",
       is_buy: a.is_buy ?? sideByProduct.get(a.product_id) ?? true,
     }));
@@ -263,16 +282,26 @@ export const IndexesWorkspace = ({
     );
   };
 
-  const totalAllocated = basket.reduce(
+  const totalVolume = basket.reduce(
     (sum, o) => sum + (parseFloat(o.amount) || 0),
     0,
   );
-  const isOverBudget =
-    totalAllocated > allocationBudget && allocationBudget > 0;
+
+  const totalMarginRequired = basket.reduce((sum, o) => {
+    const notional = parseFloat(o.amount) || 0;
+    const risk = productRisks[o.product_id];
+    if (!risk || notional <= 0) return sum;
+    return sum + estimateMarginForNotional(notional, risk, o.is_buy);
+  }, 0);
+
+  const isOverMargin = totalMarginRequired > accountAvailable && accountAvailable > 0;
+  const isOverVolume = totalVolume > volumeBudget && volumeBudget > 0;
+
   const canSubmit =
     basket.length > 0 &&
     basket.every((o) => parseFloat(o.amount) > 0) &&
-    !isOverBudget;
+    !isOverMargin &&
+    !isOverVolume;
 
   const handleSubmit = async () => {
     const count = basket.length;
@@ -333,8 +362,11 @@ export const IndexesWorkspace = ({
           indexName={previewTitle}
           assetCount={basket.length}
           basket={basket}
-          totalAllocated={totalAllocated}
-          allocationBudget={allocationBudget}
+          totalVolume={totalVolume}
+          volumeBudget={volumeBudget}
+          totalMarginRequired={totalMarginRequired}
+          productRisks={productRisks}
+          accountAvailable={accountAvailable}
           oraclePrices={oraclePrices}
         />
       </div>
@@ -344,9 +376,13 @@ export const IndexesWorkspace = ({
         <IndexSettingsPanel
           accountAvailable={accountAvailable}
           allocationPercent={allocationPercent}
-          allocationBudget={allocationBudget}
-          totalAllocated={totalAllocated}
-          isOverBudget={isOverBudget}
+          volumeBudget={volumeBudget}
+          maxVolumeBudget={maxVolumeBudget}
+          totalVolume={totalVolume}
+          totalMarginRequired={totalMarginRequired}
+          isOverMargin={isOverMargin}
+          isOverVolume={isOverVolume}
+          productRisks={productRisks}
           onAllocationPercentChange={setAllocationPercent}
           myIndexes={myIndexes}
           selectedIndexId={selectedIndexId}
