@@ -11,8 +11,11 @@ import {
 } from "../../../services/indexApi";
 import { usePerpProductRisks } from "../../../hooks/usePerpProductRisks.ts";
 import {
+  BUDGET_TOLERANCE_USD,
   estimateMarginForNotional,
   maxTotalNotionalForMargin,
+  splitVolumeByWeights,
+  splitVolumeEqual,
 } from "../../../utils/nadoRisk.ts";
 import { IndexPickerPanel } from "./IndexPickerPanel.tsx";
 import { IndexPreviewPanel } from "./IndexPreviewPanel.tsx";
@@ -29,12 +32,14 @@ interface IndexesWorkspaceProps {
   symbols: Record<number, NadoSymbol>;
   oraclePrices: Record<number, number>;
   accountAvailable?: number;
+  maintenanceHealth?: number;
 }
 
 export const IndexesWorkspace = ({
   symbols,
   oraclePrices,
   accountAvailable = 0,
+  maintenanceHealth = 0,
 }: IndexesWorkspaceProps) => {
   const { getAccessToken } = usePrivy();
   const { risks: productRisks } = usePerpProductRisks();
@@ -60,26 +65,30 @@ export const IndexesWorkspace = ({
   const [saveIndexName, setSaveIndexName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  const maxVolumeForLegs = useCallback(
+    (legs: { product_id: number; is_buy: boolean }[]) =>
+      maxTotalNotionalForMargin(accountAvailable, legs, productRisks),
+    [accountAvailable, productRisks],
+  );
+
+  const allIndexes = [...defaultIndexes, ...myIndexes];
+  const activeIndex = allIndexes.find((i) => i.id === selectedIndexId);
+
   const maxVolumeBudget = useMemo(
     () =>
-      maxTotalNotionalForMargin(
-        accountAvailable,
+      maxVolumeForLegs(
         basket.map((o) => ({
           product_id: o.product_id,
           is_buy: o.is_buy,
         })),
-        productRisks,
       ),
-    [accountAvailable, basket, productRisks],
+    [basket, maxVolumeForLegs],
   );
 
   const volumeBudget = useMemo(
     () => maxVolumeBudget * (allocationPercent / 100),
     [maxVolumeBudget, allocationPercent],
   );
-
-  const allIndexes = [...defaultIndexes, ...myIndexes];
-  const activeIndex = allIndexes.find((i) => i.id === selectedIndexId);
   const previewTitle =
     activeIndex?.name ?? (basket.length > 0 ? "Custom Basket" : "No Index");
 
@@ -103,8 +112,32 @@ export const IndexesWorkspace = ({
   const distributeEqual = useCallback(
     (items: BasketItem[]): BasketItem[] => {
       if (!items.length || volumeBudget <= 0) return items;
-      const perOrder = (volumeBudget / items.length).toFixed(2);
-      return items.map((o) => ({ ...o, amount: perOrder }));
+      const split = splitVolumeEqual(
+        volumeBudget,
+        items.map((o) => o.product_id),
+      );
+      return items.map((o) => ({
+        ...o,
+        amount: split.get(o.product_id) ?? "",
+      }));
+    },
+    [volumeBudget],
+  );
+
+  const distributeByWeights = useCallback(
+    (items: BasketItem[], weights: Map<number, number>): BasketItem[] => {
+      if (!items.length || volumeBudget <= 0) return items;
+      const split = splitVolumeByWeights(
+        volumeBudget,
+        items.map((o) => ({
+          product_id: o.product_id,
+          weight: weights.get(o.product_id) ?? 0,
+        })),
+      );
+      return items.map((o) => ({
+        ...o,
+        amount: split.get(o.product_id) ?? "",
+      }));
     },
     [volumeBudget],
   );
@@ -112,8 +145,26 @@ export const IndexesWorkspace = ({
   useEffect(() => {
     if (splitMode === "equal" && basket.length > 0) {
       setBasket((prev) => distributeEqual(prev));
+      return;
     }
-  }, [allocationPercent, accountAvailable, splitMode, distributeEqual]);
+
+    if (!activeIndex?.is_system || basket.length === 0) return;
+
+    const weightByProduct = new Map(
+      activeIndex.assets.map((a) => [a.product_id, a.weight ?? 0]),
+    );
+    setBasket((prev) => distributeByWeights(prev, weightByProduct));
+  }, [
+    allocationPercent,
+    accountAvailable,
+    splitMode,
+    distributeEqual,
+    distributeByWeights,
+    activeIndex?.id,
+    activeIndex?.is_system,
+    volumeBudget,
+    productRisks,
+  ]);
 
   const loadIndex = (indexId: number) => {
     const idx = allIndexes.find((i) => i.id === indexId);
@@ -121,32 +172,40 @@ export const IndexesWorkspace = ({
 
     setSelectedIndexId(indexId);
 
-    const sideByProduct = new Map(
-      basket.map((o) => [o.product_id, o.is_buy] as const),
-    );
-
     const filteredAssets = idx.assets.filter((a) => symbols[a.product_id]);
-    const equalAmount =
-      volumeBudget > 0 && filteredAssets.length > 0
-        ? (volumeBudget / filteredAssets.length).toFixed(2)
-        : "";
-
+    const legs = filteredAssets.map((a) => ({
+      product_id: a.product_id,
+      is_buy: a.is_buy ?? true,
+    }));
+    const maxVol = maxVolumeForLegs(legs);
+    const volBudget = maxVol * (allocationPercent / 100);
     const useWeights = idx.is_system || splitMode === "manual";
+
+    const amountByProduct =
+      volBudget > 0
+        ? useWeights
+          ? splitVolumeByWeights(
+              volBudget,
+              filteredAssets.map((a) => ({
+                product_id: a.product_id,
+                weight: a.weight || 0,
+              })),
+            )
+          : splitVolumeEqual(
+              volBudget,
+              filteredAssets.map((a) => a.product_id),
+            )
+        : new Map<number, string>();
 
     const newBasket: BasketItem[] = filteredAssets.map((a) => ({
       product_id: a.product_id,
       symbol: a.symbol,
-      amount:
-        !useWeights && equalAmount
-          ? equalAmount
-          : volumeBudget > 0
-            ? (volumeBudget * (a.weight || 0)).toFixed(2)
-            : "",
-      is_buy: a.is_buy ?? sideByProduct.get(a.product_id) ?? true,
+      amount: amountByProduct.get(a.product_id) ?? "",
+      is_buy: a.is_buy ?? true,
     }));
 
     setBasket(newBasket);
-    if (idx.is_system || splitMode !== "equal") setSplitMode("manual");
+    setSplitMode(idx.is_system ? "manual" : splitMode);
 
     setFeedback({
       type: "success",
@@ -294,14 +353,35 @@ export const IndexesWorkspace = ({
     return sum + estimateMarginForNotional(notional, risk, o.is_buy);
   }, 0);
 
-  const isOverMargin = totalMarginRequired > accountAvailable && accountAvailable > 0;
-  const isOverVolume = totalVolume > volumeBudget && volumeBudget > 0;
+  const isOverMargin =
+    totalMarginRequired > accountAvailable + BUDGET_TOLERANCE_USD &&
+    accountAvailable > 0;
+  const isOverVolume =
+    totalVolume > volumeBudget + BUDGET_TOLERANCE_USD && volumeBudget > 0;
 
-  const canSubmit =
-    basket.length > 0 &&
-    basket.every((o) => parseFloat(o.amount) > 0) &&
-    !isOverMargin &&
-    !isOverVolume;
+  const submitBlockReason = useMemo(() => {
+    if (basket.length === 0) return "Load or build an index";
+    if (!basket.every((o) => parseFloat(o.amount) > 0)) {
+      return "Set volume for every leg";
+    }
+    if (isOverMargin) {
+      return `Need $${totalMarginRequired.toFixed(2)} margin, have $${accountAvailable.toFixed(2)}`;
+    }
+    if (isOverVolume) {
+      return `Volume $${totalVolume.toFixed(2)} exceeds budget $${volumeBudget.toFixed(2)}`;
+    }
+    return null;
+  }, [
+    basket,
+    isOverMargin,
+    isOverVolume,
+    totalMarginRequired,
+    accountAvailable,
+    totalVolume,
+    volumeBudget,
+  ]);
+
+  const canSubmit = basket.length > 0 && !submitBlockReason;
 
   const handleSubmit = async () => {
     const count = basket.length;
@@ -366,7 +446,7 @@ export const IndexesWorkspace = ({
           volumeBudget={volumeBudget}
           totalMarginRequired={totalMarginRequired}
           productRisks={productRisks}
-          accountAvailable={accountAvailable}
+          maintenanceHealth={maintenanceHealth}
           oraclePrices={oraclePrices}
         />
       </div>
@@ -414,6 +494,7 @@ export const IndexesWorkspace = ({
           onStopOnFailureChange={setStopOnFailure}
           feedback={feedback}
           canSubmit={canSubmit}
+          submitBlockReason={submitBlockReason}
           isSubmitting={isSubmitting}
           onSubmit={handleSubmit}
         />

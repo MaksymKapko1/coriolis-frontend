@@ -13,7 +13,10 @@ import {
 export interface AccountState {
   balances: Record<number, number>;
   totalEquity: number;
+  /** Initial health — can open new positions while positive. */
   availableMargin: number;
+  /** Maintenance health — used for liquidation distance. */
+  maintenanceHealth: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -81,6 +84,7 @@ export const useNadoAccount = () => {
     balances: {},
     totalEquity: 0,
     availableMargin: 0,
+    maintenanceHealth: 0,
   });
 
   const [entryPrices, setEntryPrices] = useState<Record<number, number>>({});
@@ -184,12 +188,15 @@ export const useNadoAccount = () => {
           const totalEquity = calcEquity(snapshot.data);
           const availableMargin =
             Number(BigInt(snapshot.data.healths[0].health)) / 1e18;
+          const maintenanceHealth =
+            Number(BigInt(snapshot.data.healths[1].health)) / 1e18;
 
           setEntryPrices(initialEntryPrices);
           setAccount({
             balances: initialBalances,
             totalEquity,
             availableMargin,
+            maintenanceHealth,
           });
         }
 
@@ -211,6 +218,7 @@ export const useNadoAccount = () => {
           setAccount((prev) => ({
             ...prev,
             availableMargin: Number(BigInt(snap.data.healths[0].health)) / 1e18,
+            maintenanceHealth: Number(BigInt(snap.data.healths[1].health)) / 1e18,
             totalEquity: calcEquity(snap.data),
           }));
         };

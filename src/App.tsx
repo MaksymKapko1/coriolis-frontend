@@ -145,6 +145,7 @@ function App() {
             symbols={symbols}
             oraclePrices={oraclePrices}
             accountAvailable={account.availableMargin ?? 0}
+            maintenanceHealth={account.maintenanceHealth ?? 0}
           />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">

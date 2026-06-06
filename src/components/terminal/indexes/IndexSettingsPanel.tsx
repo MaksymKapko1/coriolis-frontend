@@ -47,6 +47,7 @@ interface IndexSettingsPanelProps {
   onStopOnFailureChange: (v: boolean) => void;
   feedback: { type: "error" | "success"; msg: string } | null;
   canSubmit: boolean;
+  submitBlockReason: string | null;
   isSubmitting: boolean;
   onSubmit: () => void;
 }
@@ -92,6 +93,7 @@ export const IndexSettingsPanel = ({
   onStopOnFailureChange,
   feedback,
   canSubmit,
+  submitBlockReason,
   isSubmitting,
   onSubmit,
 }: IndexSettingsPanelProps) => {
@@ -348,6 +350,12 @@ export const IndexSettingsPanel = ({
         >
           {feedback.msg}
         </div>
+      )}
+
+      {!canSubmit && submitBlockReason && basket.length > 0 && !isSubmitting && (
+        <p className="text-[9px] font-black uppercase tracking-widest text-amber-500/90 text-center">
+          {submitBlockReason}
+        </p>
       )}
 
       <button
