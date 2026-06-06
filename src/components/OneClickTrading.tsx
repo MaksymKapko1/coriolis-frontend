@@ -16,6 +16,7 @@ export const OneClickButton = () => {
   const [loading, setLoading] = useState(false);
   const [sessionActive, setSessionActive] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +48,7 @@ export const OneClickButton = () => {
 
   const handleEnable = async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("Privy token generation failed");
@@ -80,6 +82,13 @@ export const OneClickButton = () => {
       setSessionActive(true);
     } catch (err: unknown) {
       console.error("1-click error:", err);
+      const message =
+        err instanceof Error ? err.message : "1-Click setup failed";
+      setError(
+        message.includes("Failed to fetch")
+          ? "Cannot reach API (CORS or network). Check backend CORS_ORIGINS."
+          : message,
+      );
     } finally {
       setLoading(false);
     }
@@ -108,12 +117,19 @@ export const OneClickButton = () => {
   }
 
   return (
-    <button
-      onClick={handleEnable}
-      disabled={loading}
-      className="border-2 border-green-400 px-4 py-2 text-sm uppercase font-bold tracking-widest bg-black text-green-400 hover:bg-green-400 hover:text-black transition-all rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {loading ? "Processing..." : "1-Click Trading"}
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={handleEnable}
+        disabled={loading}
+        className="border-2 border-green-400 px-4 py-2 text-sm uppercase font-bold tracking-widest bg-black text-green-400 hover:bg-green-400 hover:text-black transition-all rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? "Processing..." : "1-Click Trading"}
+      </button>
+      {error && (
+        <p className="max-w-xs text-right text-[10px] font-bold uppercase tracking-wider text-red-400">
+          {error}
+        </p>
+      )}
+    </div>
   );
 };
