@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#45F08A" stop-opacity="0.15"></stop>
+      <stop offset="100%" stop-color="#45F08A" stop-opacity="0"></stop>
+    </radialGradient>
+  </defs>
+
+  <!-- Фон -->
+  <rect width="1024" height="1024" fill="#000"></rect>
+
+  <!-- Свечение -->
+  <circle cx="512" cy="512" r="420" fill="url(#glow)"></circle>
+
+  <!-- Радар -->
+  <g stroke="#00AA66" fill="none" opacity="0.35">
+    <circle cx="512" cy="512" r="420" stroke-width="3"></circle>
+    <circle cx="512" cy="512" r="320" stroke-width="2"></circle>
+    <circle cx="512" cy="512" r="220" stroke-width="2"></circle>
+    <circle cx="512" cy="512" r="120" stroke-width="2"></circle>
+
+    <line x1="92" y1="512" x2="932" y2="512" stroke-width="1"></line>
+    <line x1="512" y1="92" x2="512" y2="932" stroke-width="1"></line>
+  </g>
+
+  <!-- Метки радара -->
+  <g fill="#45F08A">
+    <circle cx="320" cy="350" r="5"></circle>
+    <circle cx="730" cy="390" r="4"></circle>
+    <circle cx="760" cy="650" r="6"></circle>
+    <circle cx="280" cy="700" r="4"></circle>
+    <circle cx="620" cy="270" r="3"></circle>
+    <circle cx="410" cy="820" r="3"></circle>
+    <circle cx="820" cy="470" r="4"></circle>
+    <circle cx="680" cy="780" r="3"></circle>
+  </g>
+
+  <!-- Внешние деления -->
+  <g stroke="#45F08A" stroke-width="2">
+    <line x1="512" y1="70" x2="512" y2="90"></line>
+    <line x1="512" y1="934" x2="512" y2="954"></line>
+    <line x1="70" y1="512" x2="90" y2="512"></line>
+    <line x1="934" y1="512" x2="954" y2="512"></line>
+  </g>
+
+  <!-- Логотип C -->
+  <path d="M680 300
+       H430
+       C350 300 280 370 280 450
+       V575
+       C280 655 350 725 430 725
+       H680" fill="none" stroke="#45F08A" stroke-width="90" stroke-linecap="square" stroke-linejoin="round"></path>
+</svg>
